@@ -1,0 +1,33 @@
+program main
+  use constants
+  use rk4_module
+  implicit none
+
+  real, device, allocatable :: x0(:), y0(:), z0(:)
+  real, device, allocatable :: vx0(:), vy0(:), vz0(:)
+  real, device, allocatable :: x_out(:,:), y_out(:,:), z_out(:,:)
+  real :: vx_host(N), vy_host(N), vz_host(N)
+  integer :: i
+
+  allocate(x0(N), y0(N), z0(N))
+  allocate(vx0(N), vy0(N), vz0(N))
+  allocate(x_out(N,nsteps), y_out(N,nsteps), z_out(N,nsteps))
+
+  call random_seed()
+  do i = 1, N
+    call random_number(vx_host(i))
+    call random_number(vy_host(i))
+    call random_number(vz_host(i))
+    vx_host(i) = sqrt(-2*log(vx_host(i))) * cos(2*3.1415*vy_host(i))  ! Box-Muller
+    vy_host(i) = sqrt(-2*log(vy_host(i))) * sin(2*3.1415*vz_host(i))
+    vz_host(i) = sqrt(-2*log(vz_host(i))) * cos(2*3.1415*vx_host(i))
+  end do
+
+  x0 = 0.0; y0 = 0.0; z0 = 0.0
+  vx0 = vx_host; vy0 = vy_host; vz0 = vz_host
+
+  call rk4_motion<<<(N+255)/256, 256>>>(x0, y0, z0, vx0, vy0, vz0, x_out, y_out, z_out)
+  call cudaDeviceSynchronize()
+
+  ! 결과를 출력하거나 저장
+end program main

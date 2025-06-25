@@ -1,0 +1,3 @@
+x=X+u
+mu=mw^2/2B
+epsilon=m/e

@@ -1,0 +1,27 @@
+module constants
+  implicit none
+  real, parameter :: q = -1.0
+  real, parameter :: m = 1.0
+  real, parameter :: dt = 0.01
+  real, parameter :: tmax = 10.0
+  integer, parameter :: nsteps = int(tmax / dt)
+
+contains
+
+  attributes(device) subroutine Bgetter(x, y, z, Bx, By, Bz)
+    real, intent(in) :: x, y, z
+    real, intent(out) :: Bx, By, Bz
+    real :: denom
+
+    denom = x*x + y*y
+    if (denom == 0.0) then
+       Bx = 0.0
+       By = 0.0
+       Bz = 0.0
+    else
+       Bx = -y / denom
+       By = x / denom
+       Bz = 0.0
+    end if
+  end subroutine Bgetter
+end module constants

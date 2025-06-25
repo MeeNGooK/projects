@@ -1,0 +1,214 @@
+module constants
+  implicit none
+  real(8), parameter :: pi = 3.141592653589793d0  ! 원주율
+  real(8), parameter :: mu0 = 4.d0 * pi * 1.d-7   ! ｍｕ０
+  real(8), parameter :: q   = -1.60217662d-19     ! ｅ
+  real(8), parameter :: m   = 9.10938356d-31      ! mass
+  real(8), parameter :: I   = 2.00d6              ! 전류 (A)
+  integer, parameter :: steps = 600000
+  real(8), parameter :: dt = 2.d-6
+  ! 초기 좌표는 메인에서 설정
+  integer, parameter :: zip=500  ! txt 파일 압축 비율
+  integer, parameter :: dn=100   ! 원형전선 분절 횟수
+  real(8), parameter :: radius=1.0d0 ! 원형전선의 반지름(m)
+
+end module constants
+
+module cross_product
+  implicit none
+contains
+  subroutine cross(a, b, c)
+    real(8), dimension(3), intent(in) :: a, b
+    real(8), dimension(3), intent(out) :: c
+    ! 벡터 a와 b의 외적을 계산하여 c에 저장
+    c(1) = a(2) * b(3) - a(3) * b(2)
+    c(2) = a(3) * b(1) - a(1) * b(3)
+    c(3) = a(1) * b(2) - a(2) * b(1)
+  end subroutine cross
+end module cross_product
+
+module magnetic_field   !직선 자기장
+  use constants
+  use cross_product
+  implicit none
+contains
+  subroutine Bfield(x, y, z, Bx, By, Bz)
+    real(8), value :: x, y, z
+    real(8), intent(out) :: Bx, By, Bz
+    real(8) :: r2, r, Btheta
+
+    r2 = x*x + y*y
+    if (r2 == 0.d0) then
+      Bx = 0.d0
+      By = 0.d0
+      Bz = 0.d0
+      return
+    end if
+
+    r = sqrt(r2)
+    Btheta = mu0 * I / (2.d0 * pi * r)
+
+    Bx = -Btheta * y / r
+    By =  Btheta * x / r
+    Bz = 0.d0
+  end subroutine Bfield
+
+  subroutine CircleB(x, y, z, Bx, By, Bz)
+    real(8), value :: x, y, z
+    real(8), intent(out) :: Bx, By, Bz
+    real(8), dimension(3) :: r   !전류로부터의 변위
+    real(8), dimension(3) :: dB
+    real(8) :: theta, dtheta, r2
+    real(8), dimension(3) :: dr
+    integer :: istep
+    Bx=0.d0
+    By=0.d0
+    Bz=0.d0  
+    theta=0.0d0
+    dtheta= 2.d0 * pi / dn
+    do istep=1,dn
+
+      theta=dtheta * istep
+      r(1) = x - radius*cos(theta)
+      r(2) = y - radius*sin(theta)
+      r(3) = z
+      
+
+      dr=radius*dtheta*(/-sin(theta), cos(theta), 0.d0/)
+      r2= r(1)**2 + r(2)**2 + r(3)**2
+      if (r2 == 0.d0) then     ! 이 케이스는 아님!
+
+        dB(1) = 0.d0
+        dB(2) = 0.d0
+        dB(3) = 0.d0
+      else
+        call cross(dr,r,dB)  ! 외적 계산
+
+        dB=dB/r2**(3.d0/2.d0)  
+
+      end if
+      Bx = Bx + dB(1)
+      By = By + dB(2)
+      Bz = Bz + dB(3)
+   !비오사바르 적분
+    end do
+
+    Bx=Bx * mu0 * I / (4.d0 * pi)
+    By=By * mu0 * I / (4.d0 * pi)
+    Bz=Bz * mu0 * I / (4.d0 * pi)   !계수 곱해주기
+
+  end subroutine CircleB
+end module magnetic_field
+
+module magnetic_field2  ! 직선 자기장
+  use constants
+  implicit none
+contains
+  subroutine Bfield2(x, y, z, Bx, By, Bz)
+    real(8), value :: x, y, z
+    real(8), intent(out) :: Bx, By, Bz
+
+    Bx= 0.d0
+    By= 0.d0
+    Bz= 1.d0
+  end subroutine Bfield2
+end module magnetic_field2
+
+module electric_field
+  use constants
+  implicit none
+contains
+  subroutine Efield(x, y, z, Ex, Ey, Ez)
+    real(8), value :: x, y, z
+    real(8), intent(out) :: Ex, Ey, Ez 
+    ! 전기장 정의 (예: 일정한 전기장)
+    Ex = 0.d0
+    Ey = 1.d5
+    Ez = 0.d0
+  end subroutine Efield
+end module electric_field
+
+module deriv    !!!!!!!!!!!!!!!!!!!!!!!!!!
+  use constants
+  use magnetic_field
+  implicit none
+contains
+  subroutine compute_deriv(r, drdt)
+    real(8), dimension(3), intent(in)  :: r
+    real(8), dimension(3), intent(out) :: drdt
+    real(8), dimension(3) :: B
+    real(8) :: Babs
+    call CircleB(r(1), r(2), r(3), B(1), B(2), B(3))
+    Babs= sqrt(B(1)**2.0 + B(2)**2.0 + B(3)**2.0)
+    drdt = B / Babs
+
+
+  end subroutine compute_deriv
+end module deriv
+
+module rk4
+  use constants
+  use deriv
+  implicit none
+contains
+  subroutine rk4_step(r, dt)
+    real(8), dimension(3), intent(inout) :: r
+    real(8), intent(in) :: dt
+    real(8), dimension(3) :: k1r, k2r, k3r, k4r
+    real(8), dimension(3) :: rt
+
+    call compute_deriv(r, k1r)
+
+    rt = r + 0.5d0 * dt * k1r
+
+    call compute_deriv(rt, k2r)
+
+    rt = r + 0.5d0 * dt * k2r
+
+    call compute_deriv(rt, k3r)
+
+    rt = r + dt * k3r
+
+    call compute_deriv(rt, k4r)
+
+    r = r + dt/6.d0*(k1r + 2.d0*k2r + 2.d0*k3r + k4r)
+
+  end subroutine rk4_step
+end module rk4
+
+program main
+  use constants
+  use rk4
+  implicit none
+  real(8), dimension(3) :: r
+  real(8) :: t, x01, y01, z01
+  integer :: istep, j, k
+  real(8), dimension(3) :: grid_value
+  character(len=100) :: filename
+
+  filename = "Mag_trace.dat"
+
+  open(unit=10, file=filename, status='replace', action='write', form='formatted')
+
+  
+
+  grid_value=(/-0.6d0, 0.0d0, 0.6d0/)
+  do j=1,3
+  do k=1,3
+  x01=grid_value(j)
+  y01=grid_value(k)
+  z01=0.0d0
+  r = (/x01,y01,z01/)  ! 초기 위치
+    do istep = 0, steps
+      t = istep * dt
+      if (mod(istep, zip) == 0) then
+        write(10,'(F12.6,3(1x,E16.8E3))') t, r(1), r(2), r(3)
+        
+      end if
+      call rk4_step(r, dt)
+    end do
+  end do
+  end do
+
+  close(10)
+end program main

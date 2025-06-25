@@ -1,0 +1,8 @@
+module constants
+  implicit none
+  integer, parameter :: nsteps = 1000
+  real, parameter :: dt = 0.01
+  real, parameter :: q = 1.0
+  real, parameter :: m = 1.0
+  integer, parameter :: N = 1000
+end module constants

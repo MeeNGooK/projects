@@ -1,0 +1,167 @@
+!지금 문제: 
+! 1. 코드는 각 파티클의 최종 도착지.
+! 2. z comp가 갱신이 안됨.
+
+module constants
+  implicit none
+  real, parameter :: q = -1.602e-19
+  real, parameter :: m = 9.109e-31
+  real, parameter :: kB = 1.381e-23
+  real, parameter :: T = 100.0
+  integer, parameter :: N = 100
+end module constants
+
+! 패러미터
+
+module magnetic_field
+  implicit none
+contains
+  attributes(device) function Bgetter(x, y, z) result(B)
+    real, value :: x, y, z
+    real :: B(3)
+    B = (/ 0.0, 0.0, 1.0 /)
+  end function Bgetter
+end module magnetic_field
+
+! 균일한 자기장(z방향)
+
+module derivatives
+  use constants
+  use magnetic_field
+  implicit none
+contains
+  attributes(device) subroutine deriv(r, v, drdt, dvdt)
+    real, intent(in) :: r(3), v(3)
+    real, intent(out) :: drdt(3), dvdt(3)
+    real :: B(3), F(3)
+    drdt = v
+    B = Bgetter(r(1), r(2), r(3))
+    F(1) = q * (v(2)*B(3) - v(3)*B(2))
+    F(2) = q * (v(3)*B(1) - v(1)*B(3))
+    F(3) = q * (v(1)*B(2) - v(2)*B(1))
+    dvdt = F / m
+  end subroutine deriv
+end module derivatives
+
+! 미분(힘방정식)
+
+attributes(global) subroutine rk4_kernel(r, v, dt, steps)
+  use constants
+  use derivatives
+  integer, value :: steps
+  real, value :: dt
+  real, dimension(3,N), device :: r, v
+
+  integer :: tid, i, j
+  real :: pos(3), vel(3)
+  real :: k1r(3), k2r(3), k3r(3), k4r(3)
+  real :: k1v(3), k2v(3), k3v(3), k4v(3)
+  real :: pos_tmp(3), vel_tmp(3)
+
+  tid = threadIdx%x + (blockIdx%x - 1) * blockDim%x
+  if (tid<1 .or. tid > N) return
+
+  pos = r(:, tid)
+  vel = v(:, tid)
+
+  do i = 1, steps
+    call deriv(pos, vel, k1r, k1v)
+    do j = 1, 3
+      pos_tmp(j) = pos(j) + 0.5*dt*k1r(j)
+      vel_tmp(j) = vel(j) + 0.5*dt*k1v(j)
+    end do
+    call deriv(pos_tmp, vel_tmp, k2r, k2v)
+    do j = 1, 3
+      pos_tmp(j) = pos(j) + 0.5*dt*k2r(j)
+      vel_tmp(j) = vel(j) + 0.5*dt*k2v(j)
+    end do
+    call deriv(pos_tmp, vel_tmp, k3r, k3v)
+    do j = 1, 3
+      pos_tmp(j) = pos(j) + dt*k3r(j)
+      vel_tmp(j) = vel(j) + dt*k3v(j)
+    end do
+    call deriv(pos_tmp, vel_tmp, k4r, k4v)
+
+    do j = 1, 3
+      pos(j) = pos(j) + dt/6.0 * (k1r(j) + 2*k2r(j) + 2*k3r(j) + k4r(j))
+      vel(j) = vel(j) + dt/6.0 * (k1v(j) + 2*k2v(j) + 2*k3v(j) + k4v(j))
+    end do
+  end do
+
+  r(:, tid) = pos
+  v(:, tid) = vel
+end subroutine rk4_kernel
+
+!rk4
+
+program main
+  use cudafor
+  use iso_c_binding
+
+  use constants
+  implicit none
+  integer :: start_clock, end_clock, clock_rate
+  real :: elapsed_time
+
+  real, allocatable, target :: r_h(:,:), v_h(:,:)
+  real, device :: r_d(3,N), v_d(3,N)
+  integer :: i, steps, threadsPerBlock, numBlocks
+  real :: dt, angle, sigma, vx, vy, vz
+
+  allocate(r_h(3,N), v_h(3,N))
+
+  do i = 1, N
+    angle = 2.0 * 3.141592 * real(i) / real(N)
+    r_h(1,i) = 1.0 * cos(angle)
+    r_h(2,i) = 1.0 * sin(angle)
+    r_h(3,i) = 0.0
+  end do
+
+  ! 초기 위치 설정: 원환 형태
+
+  sigma = sqrt(kB * T / m)
+  call random_seed()
+  do i = 1, N
+    call maxwell_velocity(vx, sigma)
+    call maxwell_velocity(vy, sigma)
+    call maxwell_velocity(vz, sigma)
+    v_h(1,i) = vx
+    v_h(2,i) = vy
+    v_h(3,i) = vz
+  end do
+  call system_clock(start_clock, clock_rate)
+
+  ! 초기 속도 설정: 맥스웰 분포(추후 수정해야 할듯)
+  r_d = r_h
+
+  v_d = v_h
+  dt = 1.0e-11
+  steps = 10000
+  threadsPerBlock = 256
+  numBlocks = (N + threadsPerBlock - 1) / threadsPerBlock
+
+  call rk4_kernel<<<numBlocks, threadsPerBlock>>>(r_d, v_d, dt, steps)
+  r_h=r_d
+  open(unit=10, file='trajectory.txt', status='replace')
+  do i = 1, N
+    write(10,'(I6,1X,E15.8,1X,E15.8,1X,E15.8)') i, r_h(1,i)-1.0, r_h(2,i), r_h(3,i)
+  end do
+  close(10)
+  call system_clock(end_clock)
+  elapsed_time = real(end_clock - start_clock) / real(clock_rate)
+  print *, 'Elapsed time for random number generation:', elapsed_time
+end program main
+
+subroutine maxwell_velocity(v, sigma)
+  real, intent(out) :: v
+  real, intent(in) :: sigma
+  real :: u1, u2
+  do
+    call random_number(u1)
+    if (u1>1.0e-10) exit
+  end do
+  call random_number(u2)
+  v = sigma * sqrt(-2.0*log(u1)) * cos(2.0*3.141592*u2)
+end subroutine maxwell_velocity
+
+! 랜덤 분포 속도 생성

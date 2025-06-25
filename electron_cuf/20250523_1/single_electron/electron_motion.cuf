@@ -1,0 +1,84 @@
+module constants
+  implicit none
+  real, parameter :: q = -1.602e-19  ! 전자 전하 (C)
+  real, parameter :: m = 9.109e-31   ! 전자 질량 (kg)
+end module constants
+
+module magnetic_field
+  implicit none
+contains
+  pure function Bgetter(x, y, z) result(B)
+    real, intent(in) :: x, y, z
+    real :: r2, B(3)
+    real, parameter :: B0 = 1.0e+1  ! 자기장 세기 (T)
+
+    r2 = x**2 + y**2
+    if (r2 == 0.0) then
+       B = 0.0
+    else
+       B(1) = -y*B0 / r2  ! x 성분 (Bx)
+       B(2) =  x*B0 / r2  ! y 성분 (By)
+       B(3) =  0.0     ! z 성분 (Bz)
+    end if
+  end function Bgetter
+end module magnetic_field
+
+program electron_rk4
+  use constants
+  use magnetic_field
+  implicit none
+
+  real :: dt, t, tmax
+  integer :: i, steps
+
+  real :: r(3), v(3)
+  real :: k1r(3), k2r(3), k3r(3), k4r(3)
+  real :: k1v(3), k2v(3), k3v(3), k4v(3)
+  real :: B(3)
+
+  dt = 1.0e-14      ! 시간 간격 (s)
+  tmax = 1.0e-11     ! 최대 시간 (s)
+  steps = int(tmax/dt)
+
+  ! 초기 위치 및 속도 설정
+  r = (/5.0e-1, 0.0, 0.0/)          ! 초기 위치 (m)
+  v = (/1.0e6, 1.0e6, 1.0e6/)          ! 초기 속도 (m/s)
+
+  open(unit=10, file='trajectory.txt', status='replace')
+
+  do i = 1, steps
+     t = i * dt
+     
+     ! RK4 계산
+     call compute_derivatives(r, v, k1r, k1v)
+     call compute_derivatives(r + 0.5*dt*k1r, v + 0.5*dt*k1v, k2r, k2v)
+     call compute_derivatives(r + 0.5*dt*k2r, v + 0.5*dt*k2v, k3r, k3v)
+     call compute_derivatives(r + dt*k3r, v + dt*k3v, k4r, k4v)
+
+     r = r + dt/6.0*(k1r + 2.0*k2r + 2.0*k3r + k4r)
+     v = v + dt/6.0*(k1v + 2.0*k2v + 2.0*k3v + k4v)
+
+     write(10,*) t, r(1)-1.0e0, r(2), r(3)
+  end do
+
+  close(10)
+end program electron_rk4
+
+subroutine compute_derivatives(r, v, drdt, dvdt)
+  use constants
+  use magnetic_field
+  implicit none
+  real, intent(in) :: r(3), v(3)
+  real, intent(out) :: drdt(3), dvdt(3)
+  real :: B(3), F(3)
+
+  drdt = v
+  B = Bgetter(r(1), r(2), r(3))
+
+  ! 로렌츠 힘 F = q (v x B)
+  F(1) = q * (v(2)*B(3) - v(3)*B(2))
+  F(2) = q * (v(3)*B(1) - v(1)*B(3))
+  F(3) = q * (v(1)*B(2) - v(2)*B(1))
+
+  dvdt = F / m
+end subroutine compute_derivatives

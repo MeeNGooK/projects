@@ -1,0 +1,53 @@
+module rk4_module
+  use constants
+  use cross_module
+  use bfield
+  implicit none
+contains
+  attributes(global) subroutine rk4_motion(x0, y0, z0, vx0, vy0, vz0, x_out, y_out, z_out)
+    integer :: idx, i
+    real :: x, y, z, vx, vy, vz
+    real :: Bx, By, Bz
+    real :: k1v(3), k2v(3), k3v(3), k4v(3)
+    real :: k1r(3), k2r(3), k3r(3), k4r(3)
+
+    real, device :: x0(:), y0(:), z0(:), vx0(:), vy0(:), vz0(:)
+    real, device :: x_out(:,:), y_out(:,:), z_out(:,:)
+
+    idx = threadIdx%x + (blockIdx%x - 1) * blockDim%x
+    if (idx > N) return
+
+    x = x0(idx); y = y0(idx); z = z0(idx)
+    vx = vx0(idx); vy = vy0(idx); vz = vz0(idx)
+
+    do i = 1, nsteps
+      x_out(idx, i) = x
+      y_out(idx, i) = y
+      z_out(idx, i) = z
+
+      call Bgetter(x, y, z, Bx, By, Bz)
+      k1v = q/m * cross(vx, vy, vz, Bx, By, Bz)
+      k1r = [vx, vy, vz]
+
+      call Bgetter(x + 0.5*dt*k1r(1), y + 0.5*dt*k1r(2), z + 0.5*dt*k1r(3), Bx, By, Bz)
+      k2v = q/m * cross(vx + 0.5*dt*k1v(1), vy + 0.5*dt*k1v(2), vz + 0.5*dt*k1v(3), Bx, By, Bz)
+      k2r = [vx + 0.5*dt*k1v(1), vy + 0.5*dt*k1v(2), vz + 0.5*dt*k1v(3)]
+
+      call Bgetter(x + 0.5*dt*k2r(1), y + 0.5*dt*k2r(2), z + 0.5*dt*k2r(3), Bx, By, Bz)
+      k3v = q/m * cross(vx + 0.5*dt*k2v(1), vy + 0.5*dt*k2v(2), vz + 0.5*dt*k2v(3), Bx, By, Bz)
+      k3r = [vx + 0.5*dt*k2v(1), vy + 0.5*dt*k2v(2), vz + 0.5*dt*k2v(3)]
+
+      call Bgetter(x + dt*k3r(1), y + dt*k3r(2), z + dt*k3r(3), Bx, By, Bz)
+      k4v = q/m * cross(vx + dt*k3v(1), vy + dt*k3v(2), vz + dt*k3v(3), Bx, By, Bz)
+      k4r = [vx + dt*k3v(1), vy + dt*k3v(2), vz + dt*k3v(3)]
+
+      vx = vx + dt/6.0 * (k1v(1) + 2*k2v(1) + 2*k3v(1) + k4v(1))
+      vy = vy + dt/6.0 * (k1v(2) + 2*k2v(2) + 2*k3v(2) + k4v(2))
+      vz = vz + dt/6.0 * (k1v(3) + 2*k2v(3) + 2*k3v(3) + k4v(3))
+
+      x = x + dt/6.0 * (k1r(1) + 2*k2r(1) + 2*k3r(1) + k4r(1))
+      y = y + dt/6.0 * (k1r(2) + 2*k2r(2) + 2*k3r(2) + k4r(2))
+      z = z + dt/6.0 * (k1r(3) + 2*k2r(3) + 2*k3r(3) + k4r(3))
+    end do
+  end subroutine rk4_motion
+end module rk4_module

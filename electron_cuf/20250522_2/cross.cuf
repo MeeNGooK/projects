@@ -1,0 +1,10 @@
+module cross_module
+contains
+  attributes(device) function cross(ax, ay, az, bx, by, bz) result(c)
+    real, value :: ax, ay, az, bx, by, bz
+    real :: c(3)
+    c(1) = ay * bz - az * by
+    c(2) = az * bx - ax * bz
+    c(3) = ax * by - ay * bx
+  end function cross
+end module cross_module

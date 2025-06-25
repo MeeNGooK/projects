@@ -1,0 +1,24 @@
+program main
+  use constants
+  use rk4_module
+  implicit none
+  real, device, allocatable :: x_dev(:), y_dev(:), z_dev(:)
+  real, allocatable :: x_host(:), y_host(:), z_host(:)
+  integer :: i
+
+  allocate(x_dev(nsteps), y_dev(nsteps), z_dev(nsteps))
+  allocate(x_host(nsteps), y_host(nsteps), z_host(nsteps))
+
+  call rk4_motion<<<1,1>>>(x_dev, y_dev, z_dev)
+
+  x_host = x_dev
+  y_host = y_dev
+  z_host = z_dev
+
+  open(unit=10, file="trajectory.dat", status="replace")
+  do i = 1, nsteps
+     write(10, *) i*dt, x_host(i), y_host(i), z_host(i)
+  end do
+  close(10)
+
+end program main

@@ -1,0 +1,12 @@
+module bfield
+contains
+  attributes(device) subroutine Bgetter(x, y, z, Bx, By, Bz)
+    real, value :: x, y, z
+    real :: Bx, By, Bz
+    real :: r2
+    r2 = x*x + y*y + 1.0e-6
+    Bx = -y / r2
+    By = x / r2
+    Bz = 0.0
+  end subroutine Bgetter
+end module bfield

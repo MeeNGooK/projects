@@ -1,0 +1,61 @@
+module rk4_module
+  use constants
+  use cross_module
+  implicit none
+contains
+
+  attributes(global) subroutine rk4_motion(x_out, y_out, z_out)
+    use constants
+    implicit none
+
+    ! Output arrays (device memory)
+    real, device :: x_out(nsteps), y_out(nsteps), z_out(nsteps)
+
+    ! Local state variables
+    real :: v(3), v_temp(3), B(3)
+    real :: k1v(3), k2v(3), k3v(3), k4v(3)
+    real :: k1r(3), k2r(3), k3r(3), k4r(3)
+    real :: x, y, z
+    integer :: i
+
+    ! Initial conditions
+    x = 1.0; y = 0.0; z = 0.0
+    v = [0.0, 1.0, 0.0]
+
+    do i = 1, nsteps
+      x_out(i) = x
+      y_out(i) = y
+      z_out(i) = z
+
+      ! k1
+      call Bgetter(x, y, z, B(1), B(2), B(3))
+      k1v = (q/m) * cross(v, B)
+      k1r = v
+
+      ! k2
+      v_temp = v + 0.5 * dt * k1v
+      call Bgetter(x + 0.5 * dt * k1r(1), y + 0.5 * dt * k1r(2), z + 0.5 * dt * k1r(3), B(1), B(2), B(3))
+      k2v = (q/m) * cross(v_temp, B)
+      k2r = v + 0.5 * dt * k1v
+
+      ! k3
+      v_temp = v + 0.5 * dt * k2v
+      call Bgetter(x + 0.5 * dt * k2r(1), y + 0.5 * dt * k2r(2), z + 0.5 * dt * k2r(3), B(1), B(2), B(3))
+      k3v = (q/m) * cross(v_temp, B)
+      k3r = v + 0.5 * dt * k2v
+
+      ! k4
+      v_temp = v + dt * k3v
+      call Bgetter(x + dt * k3r(1), y + dt * k3r(2), z + dt * k3r(3), B(1), B(2), B(3))
+      k4v = (q/m) * cross(v_temp, B)
+      k4r = v + dt * k3v
+
+      ! Update position and velocity
+      v = v + dt/6.0 * (k1v + 2.0*k2v + 2.0*k3v + k4v)
+      x = x + dt/6.0 * (k1r(1) + 2.0*k2r(1) + 2.0*k3r(1) + k4r(1))
+      y = y + dt/6.0 * (k1r(2) + 2.0*k2r(2) + 2.0*k3r(2) + k4r(2))
+      z = z + dt/6.0 * (k1r(3) + 2.0*k2r(3) + 2.0*k3r(3) + k4r(3))
+    end do
+  end subroutine rk4_motion
+
+end module rk4_module

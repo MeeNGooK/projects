@@ -1,0 +1,317 @@
+module constants
+  implicit none
+  real(8), parameter :: pi = 3.141592653589793d0
+  real(8), parameter :: mu0 = 4.d0 * pi * 1.d-7
+  real(8), parameter :: q = -1.60217662d-19
+  real(8), parameter :: m = 9.10938356d-31
+  real(8), parameter :: Current = 2.00d5
+  real(8), parameter :: epsilon = m / q
+  integer, parameter :: steps = 10000
+  real(8), parameter :: dt = 1.d-12
+  real(8), parameter :: delta=1.d-8   ! 미분 계산 시 미소 변화량
+  real(8), parameter :: x01 = 1.0d0   ! 초기 x좌표
+  real(8), parameter :: y01 = 0.0d0   ! 초기 y 좌표
+  real(8), parameter :: z01 = 0.0d0   ! 초기 z 좌표
+  real(8), parameter :: x02 = 0.0d0   ! 초기 x 속도
+  real(8), parameter :: y02 = 1.0d6   ! 초기 y 속도
+  real(8), parameter :: z02 = 1.0d6   ! 초기 z 속도
+  real(8), parameter :: scale=-2.021d-14   !스케일링 팩터
+end module constants
+
+
+
+module magnetic_field
+  use constants
+  implicit none
+contains
+  attributes(host, device) subroutine Bfield(x, y, z, Bx, By, Bz)
+    real(8), intent(in) :: x, y, z
+    real(8), intent(out) :: Bx, By, Bz
+    real(8) :: r2, r, Btheta
+
+    r2 = x*x + y*y
+    if (r2 == 0.d0) then
+      Bx = 0.d0
+      By = 0.d0
+      Bz = 0.d0
+      return
+    end if
+
+    r = sqrt(r2)
+    Btheta = mu0 * Current / (2.d0 * pi * r)
+
+    Bx = -Btheta * y / r
+    By =  Btheta * x / r
+    Bz = 0.d0
+  end subroutine Bfield
+end module magnetic_field
+
+module unit_mag    !bhat 반환
+  use constants
+  use magnetic_field
+  implicit none
+contains
+  attributes(host, device) subroutine Unitmag(x, y, z, Bhx, Bhy, Bhz)
+    real(8), intent(in) :: x, y, z
+    real(8), intent(out) :: Bhx, Bhy, Bhz
+    real(8) :: Bmag
+
+    call Bfield(x, y, z, Bhx, Bhy, Bhz)
+    Bmag = sqrt(Bhx**2 + Bhy**2 + Bhz**2)
+    if (Bmag == 0.d0) then
+      Bhx = 0.d0
+      Bhy = 0.d0
+      Bhz = 0.d0
+      return
+    end if
+    Bhx = Bhx / Bmag
+    Bhy = Bhy / Bmag
+    Bhz = Bhz / Bmag
+  end subroutine Unitmag
+end module unit_mag    !bhat 반환
+
+module abs_b    !b의 절댓값(자기장 크기) 반환
+  use constants
+  use magnetic_field
+  implicit none
+contains
+  attributes(host, device) subroutine Absb(x, y, z, B)
+    real(8), intent(in) :: x, y, z
+    real(8), intent(out) :: B
+    real(8) :: Bhx, Bhy, Bhz
+
+    call Bfield(x, y, z, Bhx, Bhy, Bhz)
+    B = sqrt(Bhx**2 + Bhy**2 + Bhz**2)
+
+  end subroutine Absb
+end module abs_b    
+
+module curl_operator   !bhat의 컬 계산
+  use unit_mag
+  implicit none
+contains
+  attributes(host, device) subroutine curlB(x, y, z, dx, dy, dz, cx, cy, cz)
+    real(8), intent(in) :: x, y, z, dx, dy, dz
+    real(8), intent(out) :: cx, cy, cz
+    real(8) :: bx1, by1, bz1, bx2, by2, bz2
+
+    ! dBz/dy - dBy/dz => cx
+    call Unitmag(x, y + dy, z, bx1, by1, bz1)
+    call Unitmag(x, y - dy, z, bx2, by2, bz2)
+    cx = (bz1 - bz2) / (2.0 * dy)
+    call Unitmag(x, y, z + dz, bx1, by1, bz1)
+    call Unitmag(x, y, z - dz, bx2, by2, bz2)
+    cx = cx - (by1 - by2) / (2.0 * dz)
+
+    ! dBx/dz - dBz/dx => cy
+    call Unitmag(x, y, z + dz, bx1, by1, bz1)
+    call Unitmag(x, y, z - dz, bx2, by2, bz2)
+    cy = (bx1 - bx2) / (2.0 * dz)
+    call Unitmag(x + dx, y, z, bx1, by1, bz1)
+    call Unitmag(x - dx, y, z, bx2, by2, bz2)
+    cy = cy - (bz1 - bz2) / (2.0 * dx)
+
+    ! dBy/dx - dBx/dy => cz
+    call Unitmag(x + dx, y, z, bx1, by1, bz1)
+    call Unitmag(x - dx, y, z, bx2, by2, bz2)
+    cz = (by1 - by2) / (2.0 * dx)
+    call Unitmag(x, y + dy, z, bx1, by1, bz1)
+    call Unitmag(x, y - dy, z, bx2, by2, bz2)
+    cz = cz - (bx1 - bx2) / (2.0 * dy)
+  end subroutine curlB
+end module curl_operator
+
+module cross_product   !가위곱
+
+  implicit none
+contains
+  attributes(host, device) subroutine Cross_product(a, b, c)
+    real(8), dimension(3), intent(in) :: a, b
+    real(8), dimension(3), intent(out) :: c
+
+    c(1) = a(2) * b(3) - a(3) * b(2)
+    c(2) = a(3) * b(1) - a(1) * b(3)
+    c(3) = a(1) * b(2) - a(2) * b(1)
+  end subroutine Cross_product
+end module cross_product
+
+
+module gradb    ! grad B 계산
+  use constants
+  use abs_b
+  implicit none
+contains  
+  attributes(host, device) subroutine gradB(x, y, z, dx, dy, dz, Bx, By, Bz)
+    real(8), value :: x, y, z, dx, dy, dz
+    real(8), intent(out) :: Bx, By, Bz
+    real(8) :: Bxu, Bxd, Byu, Byd, Bzu, Bzd
+
+    ! dBx/dy - dBy/dz => Bx
+    call Absb(x+dx, y, z, Bxu)
+    call Absb(x-dx, y, z, Bxd)
+    call Absb(x, y+dy, z, Byu)
+    call Absb(x, y-dy, z, Byd)
+    call Absb(x, y, z+dz, Bzu)
+    call Absb(x, y, z-dz, Bzd)
+    Bx=(Bxu-Bxd)/(2.0*dx)
+    By=(Byu-Byd)/(2.0*dy)
+    Bz=(Bzu-Bzd)/(2.0*dz)
+    
+
+  end subroutine gradB
+end module gradb
+
+module guiding_center
+  use constants
+  use magnetic_field
+  use cross_product
+  implicit none
+contains
+subroutine compute_gc_velocity(X, u, vgc)
+  use constants
+  use magnetic_field
+  use curl_operator
+  use gradb
+  implicit none
+  real(8), dimension(3), intent(in) :: X
+  real(8), intent(in) :: u
+  real(8), dimension(3) :: Bvec
+  real(8), dimension(3), intent(out) :: vgc
+  real(8) :: Bx, By, Bz, Bhx, Bhy, Bhz, Bmag  !Bhx, Bhy, Bhz는 Bhat의 컬, Bmag은 B의 크기
+  real(8) :: Bnpara   ! Bnorth의 B 평행 성분
+  real(8) :: gBx, gBy, gBz  ! grad |B|의 성분
+  real(8), dimension(3) :: exb, Enorth, Bnorth, bhat
+  ! B-field at X
+  call Bfield(X(1), X(2), X(3), Bx, By, Bz)
+  Bvec= (/Bx, By, Bz/)
+  Bmag = sqrt(Bx**2 + By**2 + Bz**2)
+  ! 안전성 검사: B = 0이면 탈출
+  if (Bmag == 0.d0) then
+    vgc = 0.d0
+    return
+  end if
+  ! 단위 자기장 벡터 bhat 계산
+  ! bhat = B / |B|
+
+  bhat = (/Bx, By, Bz/) / Bmag
+  call curlB(X(1), X(2), X(3), delta, delta, delta, Bhx, Bhy, Bhz)
+  ! curlB 계산: B의 회전
+  ! Northrop 자기장 (여기서는 근사적으로 Bnorth = B)
+  Bnorth = (/Bx+Bhx, By+Bhy, Bz+Bhz/)
+  Bnpara = dot_product(Bnorth, bhat)
+  call gradB(X(1), X(2), X(3), delta, delta, delta, gBx, gBy, gBz)
+  Enorth=(/gBx, gBy, gBz/)*Bmag/epsilon
+
+
+  ! 안전성 검사: B_{north, para} = 0이면 탈출
+  if (Bnpara == 0.d0) then
+    vgc = 0.d0
+    return
+  end if
+  call cross_product(Enorth, Bvec, exb)
+  vgc = (u / Bnpara) * Bnorth + (exb)/(Bnpara*Bmag)
+end subroutine compute_gc_velocity
+
+
+
+
+subroutine rk4_step_gc(X, u, dt, amu)
+  use constants
+  use magnetic_field
+  implicit none
+  real(8), dimension(3), intent(inout) :: X
+  real(8), intent(inout) :: u
+  real(8), intent(in) :: dt
+  real(8), intent(in) :: amu
+  real(8), dimension(3) :: k1X, k2X, k3X, k4X
+  real(8), dimension(3) :: Xt, dotX, B
+  real(8) :: Bmag
+
+  call compute_gc_velocity(X, u, k1X)
+
+  Xt = X + 0.5d0 * dt * k1X
+  call compute_gc_velocity(Xt, u, k2X)
+
+  Xt = X + 0.5d0 * dt * k2X
+  call compute_gc_velocity(Xt, u, k3X)
+
+  Xt = X + dt * k3X
+  call compute_gc_velocity(Xt, u, k4X)
+
+  dotX = (k1X + 2.d0*k2X + 2.d0*k3X + k4X) / 6.d0
+  X = X + dt * dotX
+
+  ! u 업데이트: u = dotX · bhat
+  call Bfield(X(1), X(2), X(3), B(1), B(2), B(3))
+  Bmag = sqrt(B(1)**2 + B(2)**2 + B(3)**2)
+  if (Bmag > 0.d0) then
+    u = dot_product(dotX, B) / Bmag
+  else
+    u = 0.d0
+  end if
+end subroutine rk4_step_gc
+end module guiding_center
+program main
+  use constants
+  use magnetic_field
+  use guiding_center
+  use unit_mag
+  use curl_operator
+  implicit none
+
+  integer, parameter :: N_total = 900
+  real(8), dimension(3, N_total) :: X, v0, vperp, b0
+  real(8), dimension(N_total) :: u, amu
+  real(8), dimension(3) :: B, v_cross_B
+  integer :: istep, i
+  character(len=100) :: filename
+
+  ! 초기 속도 z 성분
+  real(8) :: base_vz
+  real(8) :: t_start, t_end, t_elapsed
+  call cpu_time(t_start)
+  base_vz = 1.0d6
+
+  ! 입자별 초기화(vz 성분 변화해가면서)
+  do i = 1, N_total
+    v0(:, i) = (/x02, y02, base_vz - 1000.0d0 * (i - 1)/)
+    call Unitmag(x01, y01, z01, b0(1, i), b0(2, i), b0(3, i))
+    vperp(:, i) = v0(:, i) - b0(:, i) * dot_product(v0(:, i), b0(:, i))
+    amu(i) = 0.5d0 * m * dot_product(vperp(:, i), vperp(:, i)) / (q * sqrt(sum(b0(:, i)**2)))
+    call Bfield(x01, y01, z01, B(1), B(2), B(3))
+    v_cross_B = cross(vperp(:, i), B)
+    X(:, i) = (/x01, y01, z01/) + (m / (q * sum(B**2))) * v_cross_B
+    u(i) = dot_product(v0(:, i), b0(:, i))
+  end do
+
+  ! 메인 시뮬레이션 병렬 루프
+  !$acc parallel loop
+  do i = 1, N_total
+    do istep = 0, steps
+      call rk4_step_gc(X(:, i), u(i), dt, amu(i))
+    end do
+  end do
+  !$acc end parallel loop
+
+  ! 결과 저장
+  filename = "gc_final_positions.dat"
+  open(unit=10, file=filename, status='replace', action='write', form='formatted')
+  do i = 1, N_total
+    write(10,'(I6,1X,3(E16.8E3))') i, X(1, i), X(2, i), scale * X(3, i)
+  end do
+  close(10)
+
+  call cpu_time(t_end)
+  t_elapsed = t_end - t_start
+  print *, "Total time elapsed: ", t_elapsed, " seconds"
+contains
+
+  function cross(a, b) result(c)
+    real(8), dimension(3), intent(in) :: a, b
+    real(8), dimension(3) :: c
+    c(1) = a(2)*b(3) - a(3)*b(2)
+    c(2) = a(3)*b(1) - a(1)*b(3)
+    c(3) = a(1)*b(2) - a(2)*b(1)
+  end function cross
+
+end program main
