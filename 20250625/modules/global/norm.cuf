@@ -1,0 +1,10 @@
+module norm_getter
+  implicit none
+contains
+
+  real(8) function norm(x)
+    real(8), dimension(3), intent(in) :: x
+    norm = sqrt(x(1)**2 + x(2)**2 + x(3)**2)
+  end function norm
+
+end module norm_getter

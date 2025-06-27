@@ -1,0 +1,42 @@
+!cross, const, 
+
+module deriv_gc
+  use const
+  use magnetic_field_gc
+  use cross_product
+
+  use curl_operator_gc
+  use gradb_gc
+  implicit none
+contains
+  subroutine compute_gc_velocity(X, u, vgc)
+    real(8), dimension(3), intent(in) :: X
+    real(8), intent(in) :: u
+    real(8), dimension(3), intent(out) :: vgc
+    real(8), dimension(3) :: Bvec, exb, Enorth, Bnorth, bhat
+    real(8) :: Bx, By, Bz, Bhx, Bhy, Bhz, Bmag, Bnpara
+    real(8) :: gBx, gBy, gBz
+
+    call Bfield(X(1), X(2), X(3), Bx, By, Bz)
+    Bvec = (/Bx, By, Bz/)
+    Bmag = sqrt(Bx**2 + By**2 + Bz**2)
+    if (Bmag == 0.d0) then
+      vgc = 0.d0
+      return
+    end if
+
+    bhat = Bvec / Bmag
+    call curlB(X(1), X(2), X(3), delta, delta, delta, Bhx, Bhy, Bhz)
+    Bnorth = Bvec + (/Bhx, Bhy, Bhz/)
+    Bnpara = dot_product(Bnorth, bhat)
+    call gradB(X(1), X(2), X(3), delta, delta, delta, gBx, gBy, gBz)
+    Enorth = (/gBx, gBy, gBz/) * Bmag / epsilon
+
+    if (Bnpara == 0.d0) then
+      vgc = 0.d0
+      return
+    end if
+    call Cross(Enorth, Bvec, exb)
+    vgc = (u / Bnpara) * Bnorth + exb / (Bnpara * Bmag)
+  end subroutine compute_gc_velocity
+end module deriv_gc

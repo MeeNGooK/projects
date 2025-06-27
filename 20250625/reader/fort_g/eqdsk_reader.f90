@@ -30,7 +30,6 @@ contains
     read(unit,'(A)', iostat=ios) line
     if (ios /= 0) stop 'Failed to read header line.'
 
-    ! Attempt to parse last two words in the line
     nwords = 0
     do i = len_trim(line), 1, -1
       if (line(i:i) == ' ') then

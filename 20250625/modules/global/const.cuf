@@ -1,0 +1,21 @@
+!외부 참조 없음
+
+module const
+  implicit none
+  real(8), parameter :: pi = 3.141592653589793d0
+  real(8), parameter :: mu0 = 4.d0 * pi * 1.d-7
+  real(8), parameter :: q = -1.60217662d-19
+  real(8), parameter :: m = 9.10938356d-31
+  real(8), parameter :: I = 2.00d5
+  real(8), parameter :: epsilon = m / q
+  integer, parameter :: steps = 100000  ! rk4 실행 횟수
+  real(8), parameter :: dt = 1.d-12
+  real(8), parameter :: delta=1.d-8     !그래디언트, 컬 등 간격
+  real(8), parameter :: x01 = 1.0d0     !초기 좌표
+  real(8), parameter :: y01 = 0.0d0
+  real(8), parameter :: z01 = 0.0d0
+  real(8), parameter :: x02 = 0.0d0       !초기 속도
+  real(8), parameter :: y02 = 1.0d5
+  real(8), parameter :: z02 = 1.0d5
+  real(8), parameter :: scale=-2.021d-14  !스케일링 인자(gc에서만 사용)
+end module const

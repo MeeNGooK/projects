@@ -1,0 +1,27 @@
+!참조: constants_gc
+
+module line_mag   !직선 전류에 의한 자기장
+  use constants_gc
+  implicit none
+contains
+  subroutine Line_Bfield(x, y, z, Bx, By, Bz)
+    real(8), intent(in) :: x, y, z
+    real(8), intent(out) :: Bx, By, Bz
+    real(8) :: r2, r, Btheta
+
+    r2 = x*x + y*y
+    if (r2 == 0.d0) then
+      Bx = 0.d0
+      By = 0.d0
+      Bz = 0.d0
+      return
+    end if
+
+    r = sqrt(r2)
+    Btheta = mu0 * I / (2.d0 * pi * r)
+
+    Bx = -Btheta * y / r
+    By =  Btheta * x / r
+    Bz = 0.d0
+  end subroutine Line_Bfield
+end module line_mag

@@ -53,10 +53,10 @@ contains
     Bz = 0.d0
   end subroutine Bfield
 
-  subroutine CircleB(x, y, z, Bx, By, Bz)
+  subroutine CircleB(x, y, z, Bx, By, Bz)   !원형 전류 자기장
     real(8), value :: x, y, z
     real(8), intent(out) :: Bx, By, Bz
-    real(8), dimension(3) :: r   !전류로부터의 변위
+    real(8), dimension(3) :: r   !변위
     real(8), dimension(3) :: dB
     real(8) :: theta, dtheta, r2
     real(8), dimension(3) :: dr

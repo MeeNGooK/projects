@@ -1,0 +1,35 @@
+! const, circle_mag 의존
+
+
+
+module rk4_gc
+  implicit none
+  use constants_gc
+  use circle_mag
+contains
+  subroutine rk4_step_gc(X, u, dt)
+    real(8), dimension(3), intent(inout) :: X
+    real(8), intent(inout) :: u
+    real(8), intent(in) :: dt
+    real(8), dimension(3) :: k1X, k2X, k3X, k4X, Xt, dotX, B
+    real(8) :: Bmag
+
+    call compute_gc_velocity(X, u, k1X)
+    Xt = X + 0.5d0 * dt * k1X
+    call compute_gc_velocity(Xt, u, k2X)
+    Xt = X + 0.5d0 * dt * k2X
+    call compute_gc_velocity(Xt, u, k3X)
+    Xt = X + dt * k3X
+    call compute_gc_velocity(Xt, u, k4X)
+
+    dotX = (k1X + 2.d0*k2X + 2.d0*k3X + k4X) / 6.d0
+    X = X + dt * dotX
+    call CircleB(X(1), X(2), X(3), B(1), B(2), B(3))
+    Bmag = sqrt(B(1)**2 + B(2)**2 + B(3)**2)
+    if (Bmag > 0.d0) then
+      u = dot_product(dotX, B) / Bmag
+    else
+      u = 0.d0
+    end if
+  end subroutine rk4_step_gc
+end module rk4_gc
