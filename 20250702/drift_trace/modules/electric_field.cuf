@@ -1,0 +1,13 @@
+module electric_field
+  use constants
+  implicit none
+contains
+  subroutine Efield(x, y, z, Ex, Ey, Ez)  !직선 전기장
+    real(8), value :: x, y, z
+    real(8), intent(out) :: Ex, Ey, Ez 
+    
+    Ex = 0.d0
+    Ey = 1.d5
+    Ez = 0.d0
+  end subroutine Efield
+end module electric_field

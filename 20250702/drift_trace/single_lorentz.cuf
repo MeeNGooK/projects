@@ -1,0 +1,32 @@
+
+
+program main
+  use constants
+  use rk4
+  implicit none
+  real(8), dimension(3) :: r, v, x_grid_value, y_grid_value
+  real(8) :: t, xg, yg
+  integer :: istep, j, k
+  character(len=100) :: filename
+  filename = "single_traj_eb.dat"
+
+  open(unit=10, file=filename, status='replace', action='write', form='formatted')
+
+  v = (/x02,y02,z02/)   ! 초기 속도
+  ! x_grid_value=(/-0.5d0, 0.0d0, 0.5d0/)   !초기위치 여러개 설정(격저점)
+  ! y_grid_value=(/-0.5d0, -0.0d0, 0.5d0/)
+  write(10, '(A,1PE12.4,A,1PE12.4,A,I10,A,1PE12.4,A,I10)'), '# Line_I = ', I, ', Circ_I = ', I0, ', steps = ', steps, ', dt = ', dt, ', zip = ', zip
+  write(10, '(A12,3(A12))') 't(micro)    ', 'x(m)       ', 'y(m)       ', 'z(m)       '
+  r = (/x01,y01,z01/)  ! 초기 위치
+
+  do istep = 0, steps
+    t = istep * dt
+    if (mod(istep, zip) == 0) then
+      write(10,'(F12.6,3(1x,E16.8E3))') t*tmax, r(1), r(2), r(3)
+      
+    end if
+    call rk4_step(r, v, dt)
+  end do
+
+  close(10)
+end program main

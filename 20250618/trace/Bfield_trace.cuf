@@ -27,12 +27,12 @@ contains
   end subroutine cross
 end module cross_product
 
-module magnetic_field   !직선 자기장
+module magnetic_field   
   use constants
   use cross_product
   implicit none
 contains
-  subroutine Bfield(x, y, z, Bx, By, Bz)
+  subroutine Bfield(x, y, z, Bx, By, Bz)  !직선 전류 자기장
     real(8), value :: x, y, z
     real(8), intent(out) :: Bx, By, Bz
     real(8) :: r2, r, Btheta
@@ -100,33 +100,6 @@ contains
   end subroutine CircleB
 end module magnetic_field
 
-module magnetic_field2  ! 직선 자기장
-  use constants
-  implicit none
-contains
-  subroutine Bfield2(x, y, z, Bx, By, Bz)
-    real(8), value :: x, y, z
-    real(8), intent(out) :: Bx, By, Bz
-
-    Bx= 0.d0
-    By= 0.d0
-    Bz= 1.d0
-  end subroutine Bfield2
-end module magnetic_field2
-
-module electric_field
-  use constants
-  implicit none
-contains
-  subroutine Efield(x, y, z, Ex, Ey, Ez)
-    real(8), value :: x, y, z
-    real(8), intent(out) :: Ex, Ey, Ez 
-    ! 전기장 정의 (예: 일정한 전기장)
-    Ex = 0.d0
-    Ey = 1.d5
-    Ez = 0.d0
-  end subroutine Efield
-end module electric_field
 
 module deriv    !!!!!!!!!!!!!!!!!!!!!!!!!!
   use constants

@@ -7,6 +7,7 @@ module constants
   real(8), parameter :: I   = 2.00d6              ! 전류 (A)
   integer, parameter :: steps = 5000
   real(8), parameter :: dt = 2.d-13
+  integer, parameter :: zip=1   !tx 압축 비율
   real(8), parameter :: x01 = 1.0d0   ! 초기 x좌표
   real(8), parameter :: y01 = 0.0d0   ! 초기 y 좌표
   real(8), parameter :: z01 = 0.0d0   ! 초기 z 좌표
@@ -128,19 +129,21 @@ program main
   real(8) :: t
   integer :: istep
   character(len=100) :: filename
-  filename = "single_traj.dat"
+  filename = "single_traj_eb.dat"
 
   open(unit=10, file=filename, status='replace', action='write', form='formatted')
 
   r = (/x01,y01,z01/)  ! 초기 위치
   v = (/x02,y02,z02/)   ! 초기 속도
+  write(10, '(A,I0,A,ES12.5,A,I0)') '# steps = ', steps, ', dt = ', dt, ', zip = ', zip
 
   do istep = 0, steps
     t = istep * dt
-    !if (mod(istep, 20) == 0) then
+    if (mod(istep, zip) == 0) then
       write(10,'(F12.6,3(1x,E16.8E3))') t, r(1), r(2), r(3)
-      call rk4_step(r, v, dt)
-    !end if
+      
+    end if
+    call rk4_step(r, v, dt)
   end do
 
   close(10)

@@ -1,0 +1,30 @@
+module rk4
+  use constants
+  use deriv
+  implicit none
+contains
+  subroutine rk4_step(r, v, dt)
+    real(8), dimension(3), intent(inout) :: r, v
+    real(8), intent(in) :: dt
+    real(8), dimension(3) :: k1r, k2r, k3r, k4r
+    real(8), dimension(3) :: k1v, k2v, k3v, k4v
+    real(8), dimension(3) :: rt, vt
+
+    call compute_deriv(r, v, k1r, k1v)
+
+    rt = r + 0.5d0 * dt * k1r
+    vt = v + 0.5d0 * dt * k1v
+    call compute_deriv(rt, vt, k2r, k2v)
+
+    rt = r + 0.5d0 * dt * k2r
+    vt = v + 0.5d0 * dt * k2v
+    call compute_deriv(rt, vt, k3r, k3v)
+
+    rt = r + dt * k3r
+    vt = v + dt * k3v
+    call compute_deriv(rt, vt, k4r, k4v)
+
+    r = r + dt/6.d0*(k1r + 2.d0*k2r + 2.d0*k3r + k4r)
+    v = v + dt/6.d0*(k1v + 2.d0*k2v + 2.d0*k3v + k4v)
+  end subroutine rk4_step
+end module rk4
