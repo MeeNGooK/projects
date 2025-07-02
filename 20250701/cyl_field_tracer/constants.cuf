@@ -1,0 +1,15 @@
+module constants
+  implicit none
+  real(8), parameter :: pi = 3.141592653589793d0  ! 원주율
+  real(8), parameter :: mu0 = 4.d0 * pi * 1.d-7   ! ｍｕ０
+  real(8), parameter :: q   = -1.60217662d-19     ! ｅ
+  real(8), parameter :: m   = 9.10938356d-31      ! mass
+  real(8), parameter :: I   = 2.00d6              ! 전류 (A)
+  integer, parameter :: steps = 600000
+  real(8), parameter :: dt = 2.d-6
+  ! 초기 좌표는 메인에서 설정
+  integer, parameter :: zip=500  ! txt 파일 압축 비율
+  integer, parameter :: dn=100   ! 원형전선 분절 횟수
+  real(8), parameter :: radius=1.0d0 ! 원형전선의 반지름(m)
+
+end module constants

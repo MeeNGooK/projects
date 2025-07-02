@@ -1,0 +1,15 @@
+module Bfield
+    use eqdsk_reader
+    implicit none
+contains
+    subroutine B_field(r, z, phi, Br, Bz, Bphi)
+        real(8), intent(in) :: r,z,phi
+        real(8), intent(out) :: Br,Bz,Bphi
+
+        type(eqdsk_data) :: eq
+        
+        call read_eqdsk("field_read/g147131.02300_DIIID_KEFIT", eq)
+        
+        
+    end subroutine B_field
+end module Bfield

@@ -1,0 +1,71 @@
+! 의존성 없음.
+
+
+module interp   
+    implicit none
+contains
+! 2변수 함수 보간(Br, Bz에 사용)
+    function bilinear_interp(x, y, xgrid, ygrid, fgrid, nx, ny) result(fval)  ! nx, ny(그리드 배열 크기), xgrid(배열 좌표), ygrid(배열 좌표)
+
+        implicit none
+        real(8), intent(in) :: x, y      !얻고자 하는 좌표
+        real(8), intent(in) :: xgrid(nx), ygrid(ny)    !x, y 그리드 좌표 배열
+        real(8), intent(in) :: fgrid(nx, ny)     !함수값 배열 저장
+        integer, intent(in) :: nx, ny 
+        real(8) :: fval               !최종으로 얻게 될 함수값
+        integer :: i, j 
+        real(8) :: x1, x2, y1, y2, f11, f12, f21, f22, tx, ty
+
+        ! x가 포함된 구간 찾기
+        do i = 1, nx-1
+            if (xgrid(i) <= x .and. x < xgrid(i+1)) exit
+        end do
+        ! y가 포함된 구간 찾기
+        do j = 1, ny-1
+            if (ygrid(j) <= y .and. y < ygrid(j+1)) exit
+        end do
+
+        x1 = xgrid(i)     !시작점 끝점 설정
+        x2 = xgrid(i+1)
+        y1 = ygrid(j)
+        y2 = ygrid(j+1)
+
+        f11 = fgrid(i, j)
+        f12 = fgrid(i, j+1)
+        f21 = fgrid(i+1, j)
+        f22 = fgrid(i+1, j+1)
+
+        tx = (x - x1) / (x2 - x1)
+        ty = (y - y1) / (y2 - y1)
+
+        fval = (1 - tx)*(1 - ty)*f11 + tx*(1 - ty)*f21 + (1 - tx)*ty*f12 + tx*ty*f22    !계산 끝
+    end function bilinear_interp
+!1변수 함수 보간(Bphi에 사용)
+
+    ! function linear_interp(x, xgrid, fgrid, nx) result(fval)
+    !     implicit none
+    !     real(8), intent(in) :: x                 ! 보간하고자 하는 지점
+    !     real(8), intent(in) :: xgrid(nx)         ! x 격자점
+    !     real(8), intent(in) :: fgrid(nx)         ! 각 x에서의 함수값
+    !     integer, intent(in) :: nx
+    !     real(8) :: fval
+    !     integer :: i
+    !     real(8) :: x1, x2, f1, f2, t
+
+    !     ! x가 포함된 구간 찾기
+    !     do i = 1, nx - 1
+    !         if (xgrid(i) <= x .and. x < xgrid(i+1)) exit
+    !     end do
+
+    !     x1 = xgrid(i)
+    !     x2 = xgrid(i+1)
+    !     f1 = fgrid(i)
+    !     f2 = fgrid(i+1)
+
+    !     t = (x - x1) / (x2 - x1)
+
+    !     fval = (1 - t) * f1 + t * f2    ! 선형 보간
+    ! end function linear_interp
+
+
+end module interp

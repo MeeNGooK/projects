@@ -1,0 +1,31 @@
+! cuda로 b grid 만들어줌 (입력: psi(nx*nz), rgrid(nx), zgird(nz), fpol(nx))
+
+module field_cal
+  use cudafor
+  implicit none
+contains
+
+  attributes(global) subroutine B_cal(psi, rgrid, zgrid, fpol, Br, Bz, Bphi, nx, nz)
+    implicit none
+    integer, value :: nx, nz
+    real(8), dimension(nx,nz) :: psi, Br, Bz, Bphi
+    real(8), dimension(nx) :: rgrid, fpol
+    real(8), dimension(nz) :: zgrid
+
+    integer :: i, j
+    real(8) :: dpsidr, dpsidz, R
+
+    i = threadIdx%x + (blockIdx%x - 1) * blockDim%x
+    j = threadIdx%y + (blockIdx%y - 1) * blockDim%y
+
+    if (i >= 2 .and. i <= nx-1 .and. j >= 2 .and. j <= nz-1) then
+      R = rgrid(i)
+      dpsidr = (psi(i+1,j) - psi(i-1,j)) / (rgrid(i+1) - rgrid(i-1))
+      dpsidz = (psi(i,j+1) - psi(i,j-1)) / (zgrid(j+1) - zgrid(j-1))
+      Br(i,j) = -dpsidz / R
+      Bz(i,j) =  dpsidr / R
+      Bphi(i,j) = fpol(i) / R
+    end if
+  end subroutine B_cal
+
+end module field_cal
