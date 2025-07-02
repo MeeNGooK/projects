@@ -5,14 +5,15 @@ contains
         real(8), dimension(3), intent(in)  :: r
         real(8), dimension(3), intent(out) :: drdt
         real(8), intent(in):: Br, Bz, Bphi
-        real(8) :: Babs
+        real(8) :: Babs, Bphi_local
+
         Babs= sqrt(Br**2 + Bz**2 + Bphi**2)
         if (Babs == 0.d0) then
             drdt = (/ 0.d0, 0.d0, 0.d0 /)
             return
         end if
-        Bphi=Bphi/sqrt(r(1)**2 + r(2)**2 + r(3)**2)  
-        drdt=(/Br, Bz, Bphi /)
+        Bphi_local=Bphi/sqrt(r(1)**2 + r(2)**2 + r(3)**2)  
+        drdt=(/Br, Bz, Bphi_local /)
         drdt= drdt / Babs 
 
     end subroutine compute_deriv

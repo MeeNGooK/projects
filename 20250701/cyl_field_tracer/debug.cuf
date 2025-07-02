@@ -5,7 +5,7 @@ module eqdsk_reader
 
   type :: eqdsk_data
     integer :: nw, nh
-    real(8) :: rdim, zdim, rleft, zmid
+    real(8) :: rleft, zmid, rdim, zdim
     real(8) :: rmaxis, zmaxis, psiaxis, psibdry
     real(8) :: bcentr, current, simag, sibry, rgrid1, zgrid1
     real(8), allocatable :: psi(:,:), fpol(:), ffprime(:), pprime(:), qpsi(:)
@@ -20,15 +20,13 @@ contains
     character(len=256) :: line
     character(len=16) :: field
     character(len=256) :: last_words(20)
-    integer :: nw_read, nh_read
+    integer :: nw_read, nh_read, nw_pos, nh_pos
     real(8), allocatable :: buffer(:)
     integer :: i, j, k, ios, unit, nvals, nwords
 
-    ! 파일 열기
     open(newunit=unit, file=filename, status='old', iostat=ios)
-    if (ios /= 0) stop 'Failed to open GEQDSK file.'
+    if (ios /= 0) stop 'Failed to Open output file.'
 
-    ! 첫 줄: nw, nh 추출
     read(unit,'(A)', iostat=ios) line
     if (ios /= 0) stop 'Failed to read header.'
 
@@ -45,15 +43,13 @@ contains
     end do
 
     read(last_words(2), *, iostat=ios) eq%nh
-    if (ios /= 0) stop 'Failed to parse nh'
+    if (ios /= 0) stop 'Failed to get nh'
     read(last_words(1), *, iostat=ios) eq%nw
-    if (ios /= 0) stop 'Failed to parse nw'
+    if (ios /= 0) stop 'Failed to get nw'
 
-    ! 전체 읽을 실수의 수 계산
     nvals = 15 + eq%nw * eq%nh + 5 * eq%nw
     allocate(buffer(nvals))
 
-    ! 값들 읽기
     k = 1
     do
       read(unit, '(A)', iostat=ios) line
@@ -75,24 +71,21 @@ contains
       stop 'File is incomplete'
     end if
 
-    ! === 헤더 파싱 (EFIT 표준) ===
-    eq%rdim    = buffer(1)
-    eq%zdim    = buffer(2)
-    ! buffer(3) : rcentr (필요 시 추가)
-    eq%rleft   = buffer(4)
-    eq%zmid    = buffer(5)
-    eq%rmaxis  = buffer(6)
-    eq%zmaxis  = buffer(7)
-    eq%psiaxis = buffer(8)
-    eq%psibdry = buffer(9)
-    eq%bcentr  = buffer(10)
-    eq%current = buffer(11)
-    eq%simag   = buffer(12)
-    eq%sibry   = buffer(13)
-    eq%rgrid1  = buffer(14)
-    eq%zgrid1  = buffer(15)
+    eq%rleft   = buffer(1)
+    eq%zmid    = buffer(2)
+    eq%rdim    = buffer(3)
+    eq%zdim    = buffer(4)
+    eq%rmaxis  = buffer(5)
+    eq%zmaxis  = buffer(6)
+    eq%psiaxis = buffer(7)
+    eq%psibdry = buffer(8)
+    eq%bcentr  = buffer(9)
+    eq%current = buffer(10)
+    eq%simag   = buffer(11)
+    eq%sibry   = buffer(12)
+    eq%rgrid1  = buffer(13)
+    eq%zgrid1  = buffer(14)
 
-    ! psi(R,Z)
     allocate(eq%psi(eq%nw, eq%nh))
     k = 16
     do j = 1, eq%nh
@@ -102,7 +95,6 @@ contains
       end do
     end do
 
-    ! 1D profiles
     allocate(eq%fpol(eq%nw), eq%ffprime(eq%nw), eq%pprime(eq%nw), eq%qpsi(eq%nw))
     eq%fpol    = buffer(k:k+eq%nw-1); k = k + eq%nw
     eq%ffprime = buffer(k:k+eq%nw-1); k = k + eq%nw
@@ -111,3 +103,15 @@ contains
   end subroutine read_eqdsk
 
 end module eqdsk_reader
+
+program main
+    use eqdsk_reader
+
+    implicit none
+    
+    type(eqdsk_data) :: eq    ! eqdsk_data 타입 선언
+
+    
+    call read_eqdsk("g147131.02300_DIIID_KEFIT", eq)  !eqdsk 파일 읽기
+    print *, eq%nw, eq%nh
+end program main

@@ -104,22 +104,9 @@ program main
       ! 점에서 자기장 성분 계산
       
       call compute_deriv(r, B_r, B_z, B_phi, k1)
-      r_temp = r + 0.5d0 * dt * k1
-      B_r=bilinear_interp(r_temp(1),r_temp(2), rgrid, zgrid, Br, eq%nw, eq%nh)
-      B_z=bilinear_interp(r_temp(1),r_temp(2), rgrid, zgrid, Bz, eq%nw, eq%nh)
-      B_phi=bilinear_interp(r_temp(1),r_temp(2), rgrid, zgrid, Bphi, eq%nw, eq%nh)
-      call compute_deriv(r_temp, B_r, B_z, B_phi, k2)
-      r_temp = r + 0.5d0 * dt * k2
-      B_r=bilinear_interp(r_temp(1),r_temp(2), rgrid, zgrid, Br, eq%nw, eq%nh)
-      B_z=bilinear_interp(r_temp(1),r_temp(2), rgrid, zgrid, Bz, eq%nw, eq%nh)
-      B_phi=bilinear_interp(r_temp(1),r_temp(2), rgrid, zgrid, Bphi, eq%nw, eq%nh)
-      call compute_deriv(r_temp, B_r, B_z, B_phi, k3)
-      r_temp = r + dt * k3
-      B_r=bilinear_interp(r_temp(1),r_temp(2), rgrid, zgrid, Br, eq%nw, eq%nh)
-      B_z=bilinear_interp(r_temp(1),r_temp(2), rgrid, zgrid, Bz, eq%nw, eq%nh)
-      B_phi=bilinear_interp(r_temp(1),r_temp(2), rgrid, zgrid, Bphi, eq%nw, eq%nh)
-      call compute_deriv(r_temp, B_r, B_z, B_phi, k4)
-      drdt = (k1 + 2.d0*k2 + 2.d0*k3 + k4) / 6.d0
+      
+
+      drdt = k1
 
       r = r + dt * drdt
       ! if (mod(istep, 77) == 0) then
@@ -140,7 +127,7 @@ program main
   temp_filename = "Mag_trace_tmp.dat"
 
   open(newunit=u1, file=temp_filename, status='replace', action='write')
-  write(u1, '(A,I0,A,ES12.5,A,I0)') '# steps = ', steps, ', dt = ', dt, ', zip = ', zip
+  write(u1, '(A,I0,A,ES12.5,A,I0)') 'Euler Method. # steps = ', steps, ', dt = ', dt, ', zip = ', zip
   write(u1, '(A,F10.3,A)') '# total execution time = ', elapsed_time, ' sec'
 
   open(newunit=u2, file=filename, status='old', action='read')

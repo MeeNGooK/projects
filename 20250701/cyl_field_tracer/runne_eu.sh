@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # 빌드용 디렉토리 (모듈 .mod 파일 저장)
-MODDIR=build
+MODDIR=build2
 
 # 출력 파일 이름
-OUTFILE=main.exe
+OUTFILE=main2.exe
 
 # 소스 파일 목록
 SRC=(
@@ -12,7 +12,7 @@ SRC=(
   field_read/eqdsk_reader.cuf
   field_read/field_cal.cuf
   2var_interp.cuf
-  cyl_field_tracer.cuf
+  cyl_field_euler.cuf
 )
 
 # build 디렉토리 없으면 생성

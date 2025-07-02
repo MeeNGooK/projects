@@ -34,7 +34,6 @@ contains
         f12 = fgrid(i, j+1)
         f21 = fgrid(i+1, j)
         f22 = fgrid(i+1, j+1)
-
         tx = (x - x1) / (x2 - x1)
         ty = (y - y1) / (y2 - y1)
 

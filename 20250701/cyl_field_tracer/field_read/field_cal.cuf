@@ -8,7 +8,7 @@ contains
   attributes(global) subroutine B_cal(psi, rgrid, zgrid, fpol, Br, Bz, Bphi, nx, nz)
     implicit none
     integer, value :: nx, nz
-    real(8), dimension(nx,nz) :: psi, Br, Bz, Bphi
+    real(8), dimension(nx,nz) :: psi, Br, Bz, Bphi   
     real(8), dimension(nx) :: rgrid, fpol
     real(8), dimension(nz) :: zgrid
 
